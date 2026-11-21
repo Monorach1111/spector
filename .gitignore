@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+# Build output
+dist/
+tsconfig.tsbuildinfo
+# Env — never commit real keys
+.env
+.env.local
+# Logs / editor
+*.log
+.DS_Store
