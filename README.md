@@ -14,6 +14,24 @@ jarang ada yang memeriksanya dengan AI yang privat:
 Dibangun untuk **#BuildHybridAI 2026** (Firebase Hybrid AI Hackathon,
 Devpost — deadline 30 Nov 2026 17:00 ET, total hadiah $30.000).
 
+## Bahasa — Language (ID / EN)
+
+UI default **Bahasa Indonesia**, dengan tombol toggle **ID / EN** yang
+menonjol di header. Pilihan tersimpan di `localStorage`
+(`spector-lang`) dan diterapkan lagi saat app dibuka — termasuk
+`<html lang>` dan judul halaman.
+
+Beralih bahasa menerjemahkan semua chrome UI: judul, tab Scan Chat /
+Scan Label, label upload/tempel teks, tombol, label hasil (verdict
+Aman/Safe, Waspada/Caution, Berbahaya/Dangerous, Perlu Perhatian/Needs
+Attention; skor, alasan, tanda, gula/sugar, alergen/allergens, halal,
+kedaluwarsa/expiry), riwayat, dan catatan privasi. Isi contoh kasus
+tetap Bahasa Indonesia (itu memang teks penipuan/label Indonesia),
+tapi label contohnya ikut diterjemahkan. AI (Firebase) diminta menjawab
+dalam bahasa yang dipilih; demo analyser juga menghasilkan alasan
+dalam bahasa yang dipilih — dan verdict hasil scan lama tetap
+diterjemahkan saat bahasa diganti (lihat `src/lib/i18n.ts`).
+
 ## Cara kerja — Hybrid Inference
 
 Spector memakai **Firebase AI Logic Hybrid Inference SDK** (Web):
@@ -103,13 +121,14 @@ multimodal asli.
 
 ```
 src/
-  App.tsx            UI: mode switcher, upload/drag-drop, hasil, riwayat
+  App.tsx            UI: mode switcher, upload/drag-drop, hasil, riwayat, ID/EN toggle
   types.ts           Mode, ScanResult, HistoryItem
   lib/
     firebase.ts      init Firebase + App Check + Anonymous Auth + Firestore
-    ai.ts            Firebase AI Logic hybrid inference (jalur utama)
-    demoAnalyzer.ts  Analisis lokal berbasis aturan (Mode Demo)
-    samples.ts       4 contoh per mode (Bahasa Indonesia)
+    ai.ts            Firebase AI Logic hybrid inference (jalur utama; prompt ID/EN)
+    demoAnalyzer.ts  Analisis lokal berbasis aturan (Mode Demo; alasan ID/EN)
+    i18n.ts          Strings ID/EN, verdict & detail translation, localStorage
+    samples.ts       4 contoh per mode (isi Bahasa Indonesia, label ID/EN)
     history.ts       Riwayat: Firestore dulu, localStorage sebagai fallback
 docs/
   SUBMISSION.md      Draf teks Devpost (English) + shot list video demo

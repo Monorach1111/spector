@@ -35,10 +35,14 @@ textarea { width: 100%; min-height: 110px; background: #0f172a; color: var(--tex
 .primary { width: 100%; padding: 14px; margin-top: 16px; border: none; border-radius: 10px; background: var(--accent); color: #082f49; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
 .primary:disabled { opacity: 0.6; cursor: wait; }
 .secondary { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card2); background: transparent; color: var(--text); cursor: pointer; }
+.header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.lang-toggle { display: flex; border: 1px solid var(--card2); border-radius: 999px; overflow: hidden; flex-shrink: 0; margin-top: 4px; }
+.lang-toggle button { background: transparent; color: var(--muted); border: none; padding: 7px 14px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+.lang-toggle button.active { background: var(--accent); color: #082f49; }
 .verdict { font-size: 1.6rem; font-weight: 800; margin: 4px 0; }
-.verdict.Aman, .verdict.safe { color: var(--green); }
-.verdict.Waspada { color: var(--amber); }
-.verdict.Berbahaya, .verdict.Perlu { color: var(--red); }
+.verdict.Aman, .verdict.safe, .verdict.Safe { color: var(--green); }
+.verdict.Waspada, .verdict.Caution { color: var(--amber); }
+.verdict.Berbahaya, .verdict.Dangerous, .verdict.Perlu, .verdict.Needs { color: var(--red); }
 .scorebar { height: 10px; background: var(--card2); border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
 .scorebar > div { height: 100%; background: var(--accent); }
 ul { line-height: 1.6; padding-left: 20px; }

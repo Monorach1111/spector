@@ -5,21 +5,20 @@ import { analyzeDemo } from './lib/demoAnalyzer'
 import { SAMPLES } from './lib/samples'
 import { clearLocalHistory, loadHistory, saveScan } from './lib/history'
 import { getFirebase } from './lib/firebase'
-
-const MODE_LABEL: Record<Mode, { title: string; hint: string; scoreLabel: string }> = {
-  chat: {
-    title: 'Scan Chat — Cek Penipuan',
-    hint: 'Unggah screenshot chat WA/SMS atau tempel teks chat dan link-nya. Spector menilai risiko penipuan.',
-    scoreLabel: 'Skor risiko',
-  },
-  label: {
-    title: 'Scan Label — Cek Makanan & Obat',
-    hint: 'Unggah foto label atau tempel teks labelnya. Spector membaca gula, alergen, halal, dan kedaluwarsa.',
-    scoreLabel: 'Skor perhatian',
-  },
-}
+import {
+  readLang,
+  saveLang,
+  STRINGS,
+  translateDetailKey,
+  translateDetailValue,
+  translateKnownText,
+  translateVerdict,
+  verdictClass,
+  type Lang,
+} from './lib/i18n'
 
 export default function App() {
+  const [lang, setLang] = useState<Lang>(() => readLang())
   const [mode, setMode] = useState<Mode>('chat')
   const [text, setText] = useState('')
   const [image, setImage] = useState<File | null>(null)
@@ -31,6 +30,12 @@ export default function App() {
   const [copied, setCopied] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const firebaseOn = isFirebaseAvailable()
+  const s = STRINGS[lang]
+
+  const modeLabel = {
+    chat: { title: s.chatTitle, hint: s.chatHint, scoreLabel: s.chatScoreLabel },
+    label: { title: s.labelTitle, hint: s.labelHint, scoreLabel: s.labelScoreLabel },
+  } as const
 
   useEffect(() => {
     // Initialise Firebase (App Check + anonymous auth) when configured.
@@ -38,10 +43,21 @@ export default function App() {
     loadHistory().then(setHistory)
   }, [])
 
+  useEffect(() => {
+    // Persist the language choice and apply it to the document.
+    saveLang(lang)
+    document.documentElement.lang = lang
+    document.title = s.docTitle
+  }, [lang, s.docTitle])
+
+  function switchLang(next: Lang) {
+    setLang(next)
+  }
+
   function onFile(file: File | undefined) {
     if (!file) return
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      setError('Gambar harus JPEG atau PNG (syarat analisis on-device).')
+      setError(s.errorImageType)
       return
     }
     setImage(file)
@@ -51,7 +67,7 @@ export default function App() {
 
   async function onScan() {
     if (!text.trim() && !image) {
-      setError('Tempel teks atau unggah gambar dulu.')
+      setError(s.errorNeedInput)
       return
     }
     setLoading(true)
@@ -64,85 +80,100 @@ export default function App() {
         // on-device first, cloud fallback). On failure, fall back to demo
         // rather than showing a dead end — and say so in the UI.
         try {
-          res = await analyzeWithFirebase(mode, text, image)
+          res = await analyzeWithFirebase(mode, text, image, lang)
         } catch (err) {
           console.warn('[Spector] Firebase AI failed, using demo analyser:', err)
-          res = analyzeDemo(mode, text, Boolean(image))
-          res.engineNote += ' (Firebase AI gagal — hasil demo ditampilkan.)'
+          res = analyzeDemo(mode, text, Boolean(image), lang)
+          res.engineNote += lang === 'en' ? ' (Firebase AI failed — demo result shown.)' : ' (Firebase AI gagal — hasil demo ditampilkan.)'
         }
       } else {
-        res = analyzeDemo(mode, text, Boolean(image))
+        res = analyzeDemo(mode, text, Boolean(image), lang)
       }
       setResult(res)
       const saved = await saveScan(res)
       setHistory((h) => [saved, ...h].slice(0, 50))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analisis gagal. Coba lagi.')
+      setError(err instanceof Error ? err.message : s.errorGeneric)
     } finally {
       setLoading(false)
     }
   }
 
   function loadSample(id: string) {
-    const s = SAMPLES[mode].find((x) => x.id === id)
-    if (s) {
-      setText(s.text)
+    const sm = SAMPLES[mode].find((x) => x.id === id)
+    if (sm) {
+      setText(sm.text)
       setError(null)
     }
   }
 
   function copyResult() {
     if (!result) return
-    const txt = `Spector — ${MODE_LABEL[mode].title}\nVerdict: ${result.verdict} (${result.score}/100)\n${result.summary}\nAlasan:\n${result.reasons.map((r) => `- ${r}`).join('\n')}`
+    const txt = `Spector — ${modeLabel[mode].title}\n${s.copyVerdictLabel}: ${translateVerdict(result.verdict, lang)} (${result.score}/100)\n${translateKnownText(result.summary, lang)}\n${s.copyReasonsLabel}:\n${result.reasons.map((r) => `- ${translateKnownText(r, lang)}`).join('\n')}`
     navigator.clipboard.writeText(txt).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
   }
 
-  const verdictClass = result?.verdict.split(' ')[0] ?? ''
+  const displayVerdict = result ? translateVerdict(result.verdict, lang) : ''
+  const displayClass = result ? verdictClass(result.verdict) : ''
 
   return (
     <div className="wrap">
       <header>
-        <h1>
-          🔍 Spector <span>— Periksa Chat &amp; Label</span>
-        </h1>
-        <p className="sub">
-          Satu app pemeriksa untuk dua hal yang dipakai tiap hari: chat penipuan dan
-          label makanan/obat. AI jalan on-device dulu (Gemini Nano), fallback ke cloud
-          bila perlu — lewat Firebase AI Logic.
-        </p>
+        <div className="header-row">
+          <h1>
+            🔍 Spector <span>{s.headerTagline}</span>
+          </h1>
+          <div className="lang-toggle" role="group" aria-label={s.toggleLabel}>
+            <button
+              type="button"
+              className={lang === 'id' ? 'active' : ''}
+              aria-pressed={lang === 'id'}
+              onClick={() => switchLang('id')}
+            >
+              ID
+            </button>
+            <button
+              type="button"
+              className={lang === 'en' ? 'active' : ''}
+              aria-pressed={lang === 'en'}
+              onClick={() => switchLang('en')}
+            >
+              EN
+            </button>
+          </div>
+        </div>
+        <p className="sub">{s.headerSub}</p>
         {firebaseOn ? (
-          <span className="badge firebase">Firebase AI Logic aktif — hybrid inference</span>
+          <span className="badge firebase">{s.badgeFirebase}</span>
         ) : (
-          <span className="badge demo">
-            Mode Demo — isi Firebase config di .env untuk AI asli
-          </span>
+          <span className="badge demo">{s.badgeDemo}</span>
         )}
       </header>
 
       <div className="tabs" role="tablist">
         <button className={mode === 'chat' ? 'active' : ''} onClick={() => { setMode('chat'); setResult(null); setText(''); }}>
-          💬 Scan Chat — Cek Penipuan
+          {s.tabChat}
         </button>
         <button className={mode === 'label' ? 'active' : ''} onClick={() => { setMode('label'); setResult(null); setText(''); }}>
-          🏷️ Scan Label — Makanan &amp; Obat
+          {s.tabLabel}
         </button>
       </div>
 
       <section className="card">
-        <h2 style={{ margin: 0 }}>{MODE_LABEL[mode].title}</h2>
-        <p className="sub">{MODE_LABEL[mode].hint}</p>
+        <h2 style={{ margin: 0 }}>{modeLabel[mode].title}</h2>
+        <p className="sub">{modeLabel[mode].hint}</p>
 
-        <label>Gambar (opsional — JPEG/PNG)</label>
+        <label>{s.imageLabel}</label>
         <div
           className="drop"
           onClick={() => fileRef.current?.click()}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files?.[0]) }}
         >
-          {imageUrl ? <img src={imageUrl} alt="Gambar yang diunggah" /> : 'Klik atau seret gambar ke sini'}
+          {imageUrl ? <img src={imageUrl} alt={s.dropAlt} /> : s.dropText}
           <input
             ref={fileRef}
             type="file"
@@ -154,83 +185,83 @@ export default function App() {
         {image && (
           <div className="row">
             <button className="secondary" onClick={() => { setImage(null); setImageUrl(null) }}>
-              Hapus gambar
+              {s.removeImage}
             </button>
           </div>
         )}
 
-        <label htmlFor="input-text">Atau tempel teks</label>
+        <label htmlFor="input-text">{s.pasteLabel}</label>
         <textarea
           id="input-text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={mode === 'chat' ? 'Tempel isi chat / pesan di sini…' : 'Tempel teks label di sini…'}
+          placeholder={mode === 'chat' ? s.placeholderChat : s.placeholderLabel}
         />
 
         <div className="samples">
-          <span style={{ alignSelf: 'center', color: 'var(--muted)', fontSize: '0.85rem' }}>Contoh:</span>
-          {SAMPLES[mode].map((s) => (
-            <button key={s.id} onClick={() => loadSample(s.id)}>{s.title}</button>
+          <span style={{ alignSelf: 'center', color: 'var(--muted)', fontSize: '0.85rem' }}>{s.samplesLabel}</span>
+          {SAMPLES[mode].map((sm) => (
+            <button key={sm.id} onClick={() => loadSample(sm.id)}>{lang === 'en' ? sm.titleEn : sm.title}</button>
           ))}
         </div>
 
         <button className="primary" onClick={onScan} disabled={loading}>
-          {loading ? 'Menganalisis…' : '🔍 Periksa Sekarang'}
+          {loading ? s.analyzing : s.scanButton}
         </button>
         {error && <div className="error">{error}</div>}
       </section>
 
       {result && (
         <section className="card" aria-live="polite">
-          <div className={`verdict ${verdictClass}`}>{result.verdict}</div>
+          <div className={`verdict ${displayClass}`}>{displayVerdict}</div>
           <div>
-            {MODE_LABEL[mode].scoreLabel}: {result.score}/100
+            {modeLabel[mode].scoreLabel}: {result.score}/100
           </div>
           <div className="scorebar">
             <div style={{ width: `${result.score}%` }} />
           </div>
-          <p>{result.summary}</p>
+          <p>{translateKnownText(result.summary, lang)}</p>
           {result.reasons.length > 0 && (
             <>
-              <b>Alasan:</b>
-              <ul>{result.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
+              <b>{s.reasonsHeading}</b>
+              <ul>{result.reasons.map((r, i) => <li key={i}>{translateKnownText(r, lang)}</li>)}</ul>
             </>
           )}
           {result.flags.length > 0 && (
             <>
-              <b>Tanda yang ditemukan:</b>
-              <ul>{result.flags.map((f, i) => <li key={i}>{f}</li>)}</ul>
+              <b>{s.flagsHeading}</b>
+              <ul>{result.flags.map((f, i) => <li key={i}>{translateKnownText(f, lang)}</li>)}</ul>
             </>
           )}
           {Object.keys(result.details).length > 0 && (
             <div className="details">
               {Object.entries(result.details).map(([k, v]) => (
-                <div key={k}><b>{k}</b>{v}</div>
+                <div key={k}><b>{translateDetailKey(k, lang)}</b>{translateDetailValue(v, lang)}</div>
               ))}
             </div>
           )}
           <p className="engine">
-            Mesin: {result.engine === 'firebase-hybrid' ? 'Firebase AI Logic (hybrid)' : 'Demo (lokal)'} — {result.engineNote}
+            {s.engineLabel} {result.engine === 'firebase-hybrid' ? s.engineFirebase : s.engineDemo} — {translateKnownText(result.engineNote, lang)}
           </p>
           <div className="row">
             <button className="secondary" onClick={copyResult}>
-              {copied ? 'Disalin ✓' : 'Salin hasil'}
+              {copied ? s.copied : s.copyButton}
             </button>
           </div>
         </section>
       )}
 
       <section className="card">
-        <h3 style={{ marginTop: 0 }}>Riwayat Scan — Scan History</h3>
+        <h3 style={{ marginTop: 0 }}>{s.historyHeading}</h3>
         {history.length === 0 ? (
-          <p className="sub">Belum ada riwayat. Hasil scan akan tersimpan di sini (Firestore bila Firebase aktif, localStorage bila tidak).</p>
+          <p className="sub">{s.historyEmpty}</p>
         ) : (
           history.map((h) => (
             <div className="history-item" key={h.id}>
               <div>
-                <b>{h.verdict}</b> — {h.score}/100 · {h.mode === 'chat' ? 'Chat' : 'Label'}
-                <small>{h.summary.slice(0, 90)}</small>
-                <small>{new Date(h.createdAt).toLocaleString('id-ID')} · {h.engine === 'firebase-hybrid' ? 'Firebase AI' : 'Demo'}</small>
+                <b>{translateVerdict(h.verdict, lang)}</b> — {h.score}/100 · {h.mode === 'chat' ? s.historyModeChat : s.historyModeLabel}
+                <small>{translateKnownText(h.summary, lang).slice(0, 90)}</small>
+                <small>{new Date(h.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'id-ID')} · {h.engine === 'firebase-hybrid' ? s.historyEngineFirebase : s.historyEngineDemo}</small>
               </div>
             </div>
           ))
@@ -238,22 +269,15 @@ export default function App() {
         {history.length > 0 && (
           <div className="row">
             <button className="secondary" onClick={() => { clearLocalHistory(); setHistory([]) }}>
-              Hapus riwayat lokal
+              {s.clearHistory}
             </button>
           </div>
         )}
       </section>
 
       <section className="card privacy">
-        <b>Privasi — Privacy</b>
-        <p>
-          Scan on-device (Gemini Nano) tidak pernah meninggalkan perangkatmu. Bila
-          on-device tidak tersedia, prompt dikirim ke cloud Gemini lewat Firebase AI
-          Logic — hanya teks/gambar yang kamu kirim untuk scan itu. Riwayat tersimpan
-          di akun anonimmu (Firestore) atau di perangkatmu saja (localStorage).
-          Spector bukan nasihat medis atau hukum: untuk obat, ikuti dokter/apoteker;
-          untuk penipuan, laporkan ke bank / kanal resmi.
-        </p>
+        <b>{s.privacyHeading}</b>
+        <p>{s.privacyBody}</p>
       </section>
     </div>
   )
