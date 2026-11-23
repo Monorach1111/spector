@@ -85,6 +85,10 @@ export default function App() {
           console.warn('[Spector] Firebase AI failed, using demo analyser:', err)
           res = analyzeDemo(mode, text, Boolean(image), lang)
           res.engineNote += lang === 'en' ? ' (Firebase AI failed — demo result shown.)' : ' (Firebase AI gagal — hasil demo ditampilkan.)'
+          // Surface the real error in the UI (not just the console) so the
+          // cause — App Check, API key, model, network — can be diagnosed
+          // from the phone, where the console is not visible.
+          res.aiError = err instanceof Error ? err.message : String(err)
         }
       } else {
         res = analyzeDemo(mode, text, Boolean(image), lang)
@@ -243,6 +247,11 @@ export default function App() {
           <p className="engine">
             {s.engineLabel} {result.engine === 'firebase-hybrid' ? s.engineFirebase : s.engineDemo} — {translateKnownText(result.engineNote, lang)}
           </p>
+          {result.aiError && (
+            <p className="engine ai-error">
+              {s.aiErrorLabel} {result.aiError}
+            </p>
+          )}
           <div className="row">
             <button className="secondary" onClick={copyResult}>
               {copied ? s.copied : s.copyButton}

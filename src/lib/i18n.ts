@@ -183,6 +183,7 @@ export interface UiStrings {
   engineLabel: string
   engineFirebase: string
   engineDemo: string
+  aiErrorLabel: string
   copyButton: string
   copied: string
   copyVerdictLabel: string
@@ -233,6 +234,7 @@ export const STRINGS: Record<Lang, UiStrings> = {
     engineLabel: 'Mesin:',
     engineFirebase: 'Firebase AI Logic (hybrid)',
     engineDemo: 'Demo (lokal)',
+    aiErrorLabel: 'Error AI:',
     copyButton: 'Salin hasil',
     copied: 'Disalin ✓',
     copyVerdictLabel: 'Verdict',
@@ -282,6 +284,7 @@ export const STRINGS: Record<Lang, UiStrings> = {
     engineLabel: 'Engine:',
     engineFirebase: 'Firebase AI Logic (hybrid)',
     engineDemo: 'Demo (local)',
+    aiErrorLabel: 'AI error:',
     copyButton: 'Copy result',
     copied: 'Copied ✓',
     copyVerdictLabel: 'Verdict',

@@ -50,6 +50,7 @@ ul { line-height: 1.6; padding-left: 20px; }
 .details div { background: #0f172a; border-radius: 8px; padding: 10px; }
 .details b { display: block; font-size: 0.8rem; color: var(--muted); text-transform: capitalize; }
 .engine { font-size: 0.85rem; color: var(--muted); margin-top: 12px; }
+.ai-error { font-family: ui-monospace, monospace; font-size: 0.8rem; color: #fca5a5; background: #450a0a; border-radius: 8px; padding: 8px 10px; overflow-wrap: anywhere; }
 .history-item { border-top: 1px solid var(--card2); padding: 10px 0; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
 .history-item small { color: var(--muted); display: block; }
 .privacy { font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
